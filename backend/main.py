@@ -3,40 +3,38 @@ from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from sklearn.linear_model import LinearRegression
 import numpy as np
+import logging
 
-# Enhanced example dataset: [Square Footage, Number of Rooms, Location (encoded)]
-# Example: Location encoded as 0 for City A, 1 for City B
+logging.basicConfig(level=logging.INFO)
+
+# Sample dataset with extra features
 X = np.array([
-    [1000, 3, 0], [1500, 4, 0], [2000, 4, 1], [2500, 5, 1], [3000, 6, 1],  # City A and B
-    [1200, 3, 1], [1800, 4, 0], [2200, 5, 0], [2800, 6, 1], [3200, 7, 1]
-])  # Features: [square footage, num_rooms, location]
-y = np.array([300000, 450000, 500000, 600000, 650000, 350000, 470000, 520000, 610000, 670000])  # House prices
+    [1000, 3, 0, 10, 5.0, 1, 0], 
+    [1500, 4, 0, 8, 3.0, 1, 1],
+    [2000, 4, 1, 15, 2.0, 0, 1],
+    [2500, 5, 1, 12, 4.5, 1, 1],
+    [3000, 6, 1, 5, 1.0, 1, 1],
+])  
+y = np.array([300000, 450000, 500000, 600000, 650000])  
 
-# Train the model
+# Train model
 model = LinearRegression()
 model.fit(X, y)
 
-# FastAPI app
 app = FastAPI()
+app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["*"], allow_headers=["*"])
 
-# Allow CORS from React app running on localhost:3000
-origins = ["http://localhost:3000"]
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=origins,
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
-
-# Input data structure for prediction
 class HouseData(BaseModel):
     square_footage: float
     num_rooms: int
-    location: int  # 0: City A, 1: City B
+    location: int  
+    house_age: int
+    distance_to_city: float
+    garage: int
+    garden: int
 
 @app.post("/predict")
 def predict(data: HouseData):
-    input_data = np.array([[data.square_footage, data.num_rooms, data.location]])
-    prediction = model.predict(input_data)
-    return {"predicted_price": prediction[0]}
+    input_data = np.array([[data.square_footage, data.num_rooms, data.location, data.house_age, data.distance_to_city, data.garage, data.garden]])
+    prediction = model.predict(input_data)[0]
+    return {"predicted_price": float(prediction)}
